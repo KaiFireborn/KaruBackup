@@ -137,7 +137,7 @@ def processJob(title, job):
         os.makedirs(generated_folder, exist_ok=True)
 
         timemark_content = f"""#!/bin/sh
-date +%s > timestamp.txt > {generated_folder}last_executed_on.kf
+date +%s > {generated_folder}last_executed_on.kf
         """
         timemark_filename = "remember_current_timestamp.sh"
         writeTextToFile(generated_folder + timemark_filename, timemark_content)
@@ -152,6 +152,8 @@ date +%s > timestamp.txt > {generated_folder}last_executed_on.kf
         source_dir, remote_dir, job_name, precommand, style_data, excluded_dirs_abs_path
     ):
         script = f"""
+        #!/bin/bash
+         
         echo "-=- STARTING SYNC JOB -=-"
         START_TIME=$(date +%s)
 
