@@ -31,7 +31,7 @@ for job in os.listdir(base_dir):
             for script in scripts_to_execute:
                 script_path = os.path.join(os.path.join(subfolder_path, script))
                 if os.path.exists(script_path):
-                    subprocess.run(script_path, check=True)
+                    subprocess.run([script_path], check=True)
             print("Job scripts ran.")
     except Exception as e:
         print("Fail.", e)

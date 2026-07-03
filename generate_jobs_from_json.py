@@ -151,24 +151,23 @@ date +%s > {generated_folder}last_executed_on.kf
     def generateCopyJob(
         source_dir, remote_dir, job_name, precommand, style_data, excluded_dirs_abs_path
     ):
-        script = f"""
-        #!/bin/bash
-         
-        echo "-=- STARTING SYNC JOB -=-"
-        START_TIME=$(date +%s)
+        script = f"""#!/bin/bash
+ 
+echo "-=- STARTING SYNC JOB -=-"
+START_TIME=$(date +%s)
 
-        {precommand}
-        echo "-=- Precommand ran."
+{precommand}
+echo "-=- Precommand ran."
 
-        rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}
-        
-        # calculate time elapsed
-        END_TIME=$(date +%s)
-        DURATION=$((END_TIME - START_TIME))
-        MIN=$((DURATION / 60))
-        SEC=$((DURATION % 60))
-        echo ""
-        echo "-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-"
+rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}
+
+# calculate time elapsed
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+MIN=$((DURATION / 60))
+SEC=$((DURATION % 60))
+echo ""
+echo "-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-"
         """
         # precommand; match style: rsync from source to remote recursive, minimal, progress
         os.makedirs(f"./generated/{job_name}/", exist_ok=True)
