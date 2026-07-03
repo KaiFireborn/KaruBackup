@@ -176,57 +176,6 @@ date +%s > {generated_folder}last_executed_on.kf
         writeTextToFile(filename, script)
         subprocess.run(["chmod", "+x", filename])
 
-    #     def generateScheduleJob(job_name, manual_only, on_update, interval_minutes):
-    #         if manual_only:
-    #             print(f"No need to generate schedule job for {job_name}")
-    #             return
-    #         # if on_update: trigger job every time a file updates?
-    #         else:
-    #             sync_script_path = ""  # get this somehow
-    #             service_content = f"""
-    # [Unit]
-    # Description=Run Backarura job {job_name} every {interval_minutes}min
-
-    # [Service]
-    # ExecStart={sync_script_path}
-    #             """
-    #             timer_content = f"""
-    # [Unit]
-    # Description=Run Backarura job {job_name} every {interval_minutes}min
-
-    # [Timer]
-    # OnUnitActiveSec={interval_minutes}min
-    # Persistent=true
-
-    # [Install]
-    # WantedBy=timers.target
-    #                 """
-    #             # skip if destination not connected, trigger on reconnect once
-    #             # also: appendTextToFile job/log.txt something like [date-time] job attempted/succesful in 5min, copied 120 files and 25 folders, total source weight: total designation weight
-    #             generated_folder = f"./generated/{job_name}/"
-    #             os.makedirs(generated_folder, exist_ok=True)
-    #             timer_filename = f"{job_name}.timer"
-    #             service_filename = f"{job_name}.service"
-    #             writeTextToFile(generated_folder + timer_filename, timer_content)
-    #             writeTextToFile(generated_folder + service_filename, service_content)
-
-    #             systemd_config_folder = f"~/.config/systemd/user/{APP_NAME}/"
-    #             os.makedirs(systemd_config_folder, exist_ok=True)
-    #             # TODO: also write to proper directory - maybe deal with this differently later
-    #             return
-    #             writeTextToFile(systemd_config_folder + timer_filename, timer_content)
-    #             writeTextToFile(systemd_config_folder + service_filename, service_content)
-    #             subprocess.run(["systemctl", "--user", "daemon-reload"])
-    #             subprocess.run(
-    #                 [
-    #                     "systemctl",
-    #                     "--user",
-    #                     "enable",
-    #                     "--now",
-    #                     f"{APP_NAME}/{job_name}.timer",
-    #                 ]
-    #             )
-
     style_data = processStyle(job["style"])
     source_dir, excluded_dirs_abs_path = processSource(job["source"])
     remote_dir = processRemote(job["remote"], style_data, title)
