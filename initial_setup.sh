@@ -17,5 +17,5 @@ else
     exit 1
 fi
 
-echo "Initial setup done" >> initial_setup_marker.kf
+echo "Initial setup done" > initial_setup_marker.kf
 
