@@ -2,5 +2,5 @@ irrelevant/
 generated/*
 log.txt
 initial_setup_marker.kf
-cron_output.txt
 jobs.jsonc
+cron_output.log

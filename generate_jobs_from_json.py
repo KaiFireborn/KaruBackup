@@ -166,6 +166,14 @@ date +%s > {generated_folder}last_executed_on.kf
         return f"""notify-send -a "{APP_NAME}" -t 5100 "{APP_NAME} - {kind}" "{content}" 
         """
 
+    def getEnvVariablesForNotifs():
+        return f"""# formatting
+YW='\033[1;33m'
+NC='\033[0m'
+export DISPLAY=:0
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus
+        """
+
     def generateCopyJob(
         source_dir,
         remote_dir,
@@ -178,9 +186,9 @@ date +%s > {generated_folder}last_executed_on.kf
     ):
         script = f"""#!/bin/bash
 # {style_data["mode"]}
-# formatting
-YW='\033[1;33m'
-NC='\033[0m'
+
+{getEnvVariablesForNotifs()}
+
 #job
 echo "${{YW}}-=- STARTING SYNC JOB -=-${{NC}}"
 START_TIME=$(date +%s)
