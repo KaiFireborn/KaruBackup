@@ -66,8 +66,8 @@ def processJob(title, job):
         ):  # TODO: check how rsync deals with this; potentially list all subdirs, subtract included, and add to excluded
             included = []  # TODO: get all dirs in root
         checkAndWarnDirs(included, "Included", abort=True)
-        excluded = [
-            root_dir + subdir for subdir in source["explicit_exclude"]
+        excluded = source[
+            "explicit_exclude"
         ]  # TODO: validation: all of these must be subdirectories of root_dir
         checkAndWarnDirs(excluded, "Excluded", abort=False)
 
