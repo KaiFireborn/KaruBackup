@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaruBackupConfig",
+  "type": "object",
+  "required": ["jobs"],
+  "properties": {
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "source",
+          "precommand",
+          "style",
+          "postcommand",
+          "encrypted",
+          "trigger",
+          "remote"
+        ],
+        "properties": {
+          "source": {
+            "type": "object",
+            "required": ["root", "included_only", "explicit_exclude"],
+            "properties": {
+              "root": {
+                "type": "string",
+                "description": "Absolute source path. Must not contain tilde (~)."
+              },
+              "included_only": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "explicit_exclude": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "precommand": {
+            "type": "string"
+          },
+          "style": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": ["custom", "rsync_basic", "restic_basic"],
+                "description": "Matches Python's ACCEPTED_STYLE_MODES"
+              },
+              "additional": {
+                "type": "string",
+                "description": "Custom command formatting template string."
+              }
+            },
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "custom"
+                }
+              }
+            },
+            "then": {
+              "required": ["additional"]
+            }
+          },
+          "postcommand": {
+            "type": "string"
+          },
+          "encrypted": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "object",
+            "required": ["unit", "every_n_units"],
+            "properties": {
+              "unit": {
+                "type": "string",
+                "enum": ["minute", "hour", "day", "week"],
+                "description": "Allowed schedule units checked by Python switch-case."
+              },
+              "every_n_units": {
+                "type": "integer",
+                "minimum": -1,
+                "description": "Interval frequency. -1 means manual_only, 0 means on_update."
+              }
+            }
+          },
+          "remote": {
+            "type": "string",
+            "description": "Absolute destination path. Must not contain tilde (~)."
+          }
+        }
+      }
+    }
+  }
+}
