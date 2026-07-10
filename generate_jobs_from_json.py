@@ -6,6 +6,7 @@ import traceback
 
 APP_NAME = "KaruBackup"
 ACCEPTED_STYLE_MODES = ["custom", "rsync_basic", "restic_basic"]
+INITIALLY_OVERDUE = True
 
 
 def readJson(filename):
@@ -139,13 +140,18 @@ def processJob(title, job):
         generated_folder = f"./generated/{job_name}/"
         os.makedirs(generated_folder, exist_ok=True)
 
+        timemark_marker_filename = "last_executed_on.kf"
         timemark_content = f"""#!/bin/sh
-date +%s > {generated_folder}last_executed_on.kf
+date +%s > {generated_folder}{timemark_marker_filename}
         """
-        timemark_filename = "remember_current_timestamp.sh"
-        writeTextToFile(generated_folder + timemark_filename, timemark_content)
-        subprocess.run(["chmod", "+x", generated_folder + timemark_filename])
-        subprocess.run([generated_folder + timemark_filename])
+        timemark_script_filename = "remember_current_timestamp.sh"
+        writeTextToFile(generated_folder + timemark_script_filename, timemark_content)
+        subprocess.run(["chmod", "+x", generated_folder + timemark_script_filename])
+
+        if INITIALLY_OVERDUE:
+            writeTextToFile(generated_folder + timemark_marker_filename, "0")
+        else:
+            subprocess.run([generated_folder + timemark_script_filename])
 
         interval_content = str(interval_minutes * 60)  # to unix timestamp format
         interval_filename = "exec_every_n_sec.kf"
