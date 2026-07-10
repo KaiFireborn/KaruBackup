@@ -131,7 +131,6 @@ def processJob(title, job):
         return manual_only, on_update, interval
 
     def processStyle(style):
-        print(style)
         if style["mode"] not in ACCEPTED_STYLE_MODES:
             warn(f"No style {style['mode']} found.", abort=True)
         return style
@@ -163,6 +162,10 @@ date +%s > {generated_folder}last_executed_on.kf
             )
             return custom_command
 
+    def generateNotificationCommand(kind, content):
+        return f"""notify-send -a "{APP_NAME}" -t 5100 "{APP_NAME} - {kind}" "{content}" 
+        """
+
     def generateCopyJob(
         source_dir,
         remote_dir,
@@ -175,23 +178,31 @@ date +%s > {generated_folder}last_executed_on.kf
     ):
         script = f"""#!/bin/bash
 # {style_data["mode"]}
-echo "-=- STARTING SYNC JOB -=-"
+# formatting
+YW='\033[1;33m'
+NC='\033[0m'
+#job
+echo "${{YW}}-=- STARTING SYNC JOB -=-${{NC}}"
 START_TIME=$(date +%s)
 
+{generateNotificationCommand(style_data["mode"], f"{job_name} started. From {source_dir} to {remote_dir}")}
+
 {precommand}
-echo "-=- Precommand ran."
+printf "${{YW}}-=- Precommand ran.${{NC}}"
 {maincommand}
-echo "-=-" Maincommand ran.""
+echo "${{YW}}-=- Maincommand ran.${{NC}}"
 {postcommand}
-echo "-=- Postcommand ran."
+printf "${{YW}}-=- Postcommand ran.${{NC}}"
+
 # calculate time elapsed
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 MIN=$((DURATION / 60))
 SEC=$((DURATION % 60))
 echo ""
-echo "-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-"
-        """
+echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
+{generateNotificationCommand(style_data["mode"], f"{job_name} finished in $MIN:$SEC")}
+        """  # TODO: improve final notification with number of copied files and so on
         # precommand; match style: rsync from source to remote recursive, minimal, progress
         os.makedirs(f"./generated/{job_name}/", exist_ok=True)
         filename = f"./generated/{job_name}/copy.sh"
@@ -207,9 +218,6 @@ echo "-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-"
     )
     postcommand = processPostcommand(job["postcommand"])
     manual_only, on_update, interval = processTrigger(job["trigger"])
-    # print(
-    #     style_data, source_dir, remote_dir, precommand, manual_only, on_update, interval
-    # )
     generateCopyJob(
         source_dir,
         remote_dir,
