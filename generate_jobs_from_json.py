@@ -209,7 +209,7 @@ MIN=$((DURATION / 60))
 SEC=$((DURATION % 60))
 echo ""
 echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
-{generateNotificationCommand(style_data["mode"], f"{job_name} finished in $MINmin:$SECsec")}
+{generateNotificationCommand(style_data["mode"], f"{job_name} finished in $MIN min $SEC sec")}
         """  # TODO: improve final notification with number of copied files and so on
         # precommand; match style: rsync from source to remote recursive, minimal, progress
         os.makedirs(f"./generated/{job_name}/", exist_ok=True)
