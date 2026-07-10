@@ -1,5 +1,5 @@
 #!/bin/bash
-
+echo "Initial setup done" >> initial_setup_marker.kf
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 OVERDUE_JOBS_SCRIPT="$SCRIPT_DIR/run_overdue_backups.py"
 

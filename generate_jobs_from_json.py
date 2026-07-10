@@ -5,7 +5,7 @@ import shutil
 import traceback
 
 APP_NAME = "KaruBackup"
-ACCEPTED_STYLES = "rsync"
+ACCEPTED_STYLE_MODES = ["custom", "rsync_basic", "restic_basic"]
 
 
 def readJson(filename):
@@ -88,7 +88,7 @@ def processJob(title, job):
         checkAndWarnDirs(
             [remote], "Remote", abort=True
         )  # does it have to be connected to generate a job?? Destinations aren't always accessible
-        remote_dir = f"{remote}{APP_NAME}/{style}/{job_name}/"
+        remote_dir = f"{remote}{APP_NAME}/{job_name}/"
         os.makedirs(remote_dir, exist_ok=True)
         if "~" in remote_dir:
             warn("Don't use ~ instead of /home/username/ in jobs.jsonc!", abort=True)
@@ -96,6 +96,9 @@ def processJob(title, job):
 
     def processPrecommand(precommand):
         return precommand  # TODO: validate this somehow
+
+    def processPostcommand(postcommand):
+        return postcommand  # TODO: validate this somehow
 
     def processTrigger(trigger):
         # TODO: check what unit kron and stuff use, assuming seconds
@@ -128,8 +131,9 @@ def processJob(title, job):
         return manual_only, on_update, interval
 
     def processStyle(style):
-        if style not in ACCEPTED_STYLES:
-            warn(f"No style {style} found.", abort=True)
+        print(style)
+        if style["mode"] not in ACCEPTED_STYLE_MODES:
+            warn(f"No style {style['mode']} found.", abort=True)
         return style
 
     def generateTimerHelperFiles(job_name, manual_only, on_update, interval_minutes):
@@ -148,19 +152,38 @@ date +%s > {generated_folder}last_executed_on.kf
         interval_filename = "exec_every_n_sec.kf"
         writeTextToFile(generated_folder + interval_filename, interval_content)
 
+    def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
+        if style_data["mode"] == "rsync_basic":
+            return f"rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
+        if style_data["mode"] == "custom":
+            custom_command = style_data["additional"].format(
+                excluded_dirs_abs_path=excluded_dirs_abs_path,
+                source_dir=source_dir,
+                remote_dir=remote_dir,
+            )
+            return custom_command
+
     def generateCopyJob(
-        source_dir, remote_dir, job_name, precommand, style_data, excluded_dirs_abs_path
+        source_dir,
+        remote_dir,
+        job_name,
+        precommand,
+        maincommand,
+        postcommand,
+        style_data,
+        excluded_dirs_abs_path,
     ):
         script = f"""#!/bin/bash
- 
+# {style_data["mode"]}
 echo "-=- STARTING SYNC JOB -=-"
 START_TIME=$(date +%s)
 
 {precommand}
 echo "-=- Precommand ran."
-
-rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}
-
+{maincommand}
+echo "-=-" Maincommand ran.""
+{postcommand}
+echo "-=- Postcommand ran."
 # calculate time elapsed
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
@@ -179,12 +202,23 @@ echo "-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-"
     source_dir, excluded_dirs_abs_path = processSource(job["source"])
     remote_dir = processRemote(job["remote"], style_data, title)
     precommand = processPrecommand(job["precommand"])
+    maincommand = generateMainCommand(
+        style_data, excluded_dirs_abs_path, source_dir, remote_dir
+    )
+    postcommand = processPostcommand(job["postcommand"])
     manual_only, on_update, interval = processTrigger(job["trigger"])
     # print(
     #     style_data, source_dir, remote_dir, precommand, manual_only, on_update, interval
     # )
     generateCopyJob(
-        source_dir, remote_dir, title, precommand, style_data, excluded_dirs_abs_path
+        source_dir,
+        remote_dir,
+        title,
+        precommand,
+        maincommand,
+        postcommand,
+        style_data,
+        excluded_dirs_abs_path,
     )
     generateTimerHelperFiles(title, manual_only, on_update, interval)
 
