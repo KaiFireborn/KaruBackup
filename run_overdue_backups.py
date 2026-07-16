@@ -16,6 +16,11 @@ def read_mark_contents(filename):
 for job in os.listdir(base_dir):
     print("Checking", job)
     subfolder_path = os.path.join(base_dir, job)
+
+    if os.path.exists(os.path.join(subfolder_path, "MANUAL_ONLY.kf")):
+        print("\tSkipping: Manual only.")
+        continue
+
     try:
         last_execution = read_mark_contents(
             os.path.join(subfolder_path, "last_executed_on.kf")

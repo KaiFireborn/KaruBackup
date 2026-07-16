@@ -5,7 +5,7 @@ import shutil
 import traceback
 
 APP_NAME = "KaruBackup"
-ACCEPTED_STYLE_MODES = ["custom", "rsync_basic", "restic_basic"]
+ACCEPTED_STYLE_MODES = ["custom", "rsync_basic", "rclone_basic", "restic_basic"]
 INITIALLY_OVERDUE = True
 
 
@@ -54,23 +54,17 @@ def getDirWeight(
 
 
 def processJob(title, job):
-    def processSource(source):
-        root_dir = source["root"]
-        if root_dir[-1] != "/":
-            root_dir += "/"
-        checkAndWarnDirs([root_dir], "Root", abort=True)
+    def processSource(source_dict):
+        source_mountpoint = source_dict["mountpoint"]
+        source_dir = source_mountpoint + source_dict["path_from_mountpoint"]
 
-        included = [root_dir + subdir for subdir in source["included_only"]]
-        if (
-            len(included) == 0
-        ):  # TODO: check how rsync deals with this; potentially list all subdirs, subtract included, and add to excluded
-            included = []  # TODO: get all dirs in root
-        checkAndWarnDirs(included, "Included", abort=True)
-        excluded = source[
+        if source_dir[-1] != "/":
+            source_dir += "/"
+
+        excluded = source_dict[
             "explicit_exclude"
         ]  # TODO: validation: all of these must be subdirectories of root_dir
-        checkAndWarnDirs(excluded, "Excluded", abort=False)
-
+        # checkAndWarnDirs(excluded, "Excluded", abort=False) FIXME: reenable
         excluded_dirs_total = (
             excluded  # + (all_dirs in root - included) # TODO: handle this
         )
@@ -79,21 +73,17 @@ def processJob(title, job):
             f"./generated/{title}/excluded_dirs.txt", "\n".join(excluded_dirs_total)
         )
 
-        if "~" in root_dir:
+        if "~" in source_dir:
             warn("Don't use ~ instead of /home/username/ in jobs.jsonc!", abort=True)
-        return root_dir, excluded_dirs_file_abs_path
+        return source_dir, source_mountpoint, excluded_dirs_file_abs_path
 
-    def processRemote(remote, style, job_name):
-        # TODO: especially handle on other disks/devices. What if something is mounted - how does rsync deal with copying from such dirs?
-        os.makedirs(remote, exist_ok=True)  # hmm, create it and then check?
-        checkAndWarnDirs(
-            [remote], "Remote", abort=True
-        )  # does it have to be connected to generate a job?? Destinations aren't always accessible
-        remote_dir = f"{remote}{APP_NAME}/{job_name}/"
+    def processRemote(remote_dict, style, job_name):
+        remote_mountpoint = remote_dict["mountpoint"]
+        remote_dir = remote_mountpoint + remote_dict["path_from_mountpoint"]
         os.makedirs(remote_dir, exist_ok=True)
         if "~" in remote_dir:
             warn("Don't use ~ instead of /home/username/ in jobs.jsonc!", abort=True)
-        return remote_dir
+        return remote_dir, remote_mountpoint
 
     def processPrecommand(precommand):
         return precommand  # TODO: validate this somehow
@@ -136,9 +126,28 @@ def processJob(title, job):
             warn(f"No style {style['mode']} found.", abort=True)
         return style
 
+    def processCategory(category):
+        return category
+
+    def generateVerificationFiles(
+        source_dir, source_mountpoint, remote_dir, remote_mountpoint, job_name, category
+    ):
+        generated_folder = f"./generated/{job_name}/"
+        os.makedirs(generated_folder, exist_ok=True)
+        exclude_file = generated_folder + "excluded_dirs.txt"
+        with open("templates/verify.sh", "r") as infile:
+            script = infile.read().format(
+                source_dir, remote_dir, job_name, exclude_file
+            )
+
+        writeTextToFile(generated_folder + "verify.sh", script)
+
     def generateTimerHelperFiles(job_name, manual_only, on_update, interval_minutes):
         generated_folder = f"./generated/{job_name}/"
         os.makedirs(generated_folder, exist_ok=True)
+
+        if manual_only:
+            writeTextToFile(generated_folder + "MANUAL_ONLY.kf", "")
 
         timemark_marker_filename = "last_executed_on.kf"
         timemark_content = f"""#!/bin/sh
@@ -160,7 +169,11 @@ date +%s > {generated_folder}{timemark_marker_filename}
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
             return f"rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
-        if style_data["mode"] == "custom":
+        elif style_data["mode"] == "rclone_basic":
+            return ""  # TODO
+        elif style_data["mode"] == "restic_basic":
+            raise NotImplementedError
+        elif style_data["mode"] == "custom":
             custom_command = style_data["additional"].format(
                 excluded_dirs_abs_path=excluded_dirs_abs_path,
                 source_dir=source_dir,
@@ -182,8 +195,11 @@ export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus
 
     def generateCopyJob(
         source_dir,
+        source_mountpoint,
         remote_dir,
+        remote_mountpoint,
         job_name,
+        category,
         precommand,
         maincommand,
         postcommand,
@@ -223,9 +239,10 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         writeTextToFile(filename, script)
         subprocess.run(["chmod", "+x", filename])
 
+    category = processCategory(job["category"])
     style_data = processStyle(job["style"])
-    source_dir, excluded_dirs_abs_path = processSource(job["source"])
-    remote_dir = processRemote(job["remote"], style_data, title)
+    source_dir, source_mountpoint, excluded_dirs_abs_path = processSource(job["source"])
+    remote_dir, remote_mountpoint = processRemote(job["remote"], style_data, title)
     precommand = processPrecommand(job["precommand"])
     maincommand = generateMainCommand(
         style_data, excluded_dirs_abs_path, source_dir, remote_dir
@@ -234,8 +251,11 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
     manual_only, on_update, interval = processTrigger(job["trigger"])
     generateCopyJob(
         source_dir,
+        source_mountpoint,
         remote_dir,
+        remote_mountpoint,
         title,
+        category,
         precommand,
         maincommand,
         postcommand,
@@ -243,6 +263,9 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         excluded_dirs_abs_path,
     )
     generateTimerHelperFiles(title, manual_only, on_update, interval)
+    generateVerificationFiles(
+        source_dir, source_mountpoint, remote_dir, remote_mountpoint, title, category
+    )
 
 
 def clearGeneratedFolder():

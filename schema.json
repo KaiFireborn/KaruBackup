@@ -13,24 +13,30 @@
           "precommand",
           "style",
           "postcommand",
-          "encrypted",
           "trigger",
-          "remote"
+          "remote",
+          "category"
         ],
         "properties": {
+          "category": {
+            "type": "string",
+            "description": "The backup will be saved in remote_mountpoint/remote_path_from_mountpoint/category/job_name"
+          },
           "source": {
             "type": "object",
-            "required": ["root", "included_only", "explicit_exclude"],
+            "required": [
+              "mountpoint",
+              "path_from_mountpoint",
+              "explicit_exclude"
+            ],
             "properties": {
-              "root": {
+              "mountpoint": {
                 "type": "string",
-                "description": "Absolute source path. Must not contain tilde (~)."
+                "description": "Absolute source path to the mountpoint, use `/` for root. Must not contain tilde (~); must start and end with `/`"
               },
-              "included_only": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "path_from_mountpoint": {
+                "type": "string",
+                "description": "Path to the folder the contents of which are supposed to be backed up starting from the mountpoint specified separately. Must end but not start with `/`"
               },
               "explicit_exclude": {
                 "type": "array",
@@ -49,8 +55,13 @@
             "properties": {
               "mode": {
                 "type": "string",
-                "enum": ["custom", "rsync_basic", "restic_basic"],
-                "description": "Matches Python's ACCEPTED_STYLE_MODES"
+                "enum": [
+                  "custom",
+                  "rsync_basic",
+                  "rclone_basic",
+                  "restic_basic"
+                ],
+                "description": "Choose `rclone_basic` if backing up to or from rclone remote; Choose `rsync_basic` (simple) or `restic_basic` (incremental) for backups on the same filesystem or to attached disks; Choose `restic_basic`."
               },
               "additional": {
                 "type": "string",
@@ -71,9 +82,6 @@
           "postcommand": {
             "type": "string"
           },
-          "encrypted": {
-            "type": "string"
-          },
           "trigger": {
             "type": "object",
             "required": ["unit", "every_n_units"],
@@ -91,8 +99,15 @@
             }
           },
           "remote": {
-            "type": "string",
-            "description": "Absolute destination path. Must not contain tilde (~)."
+            "required": ["mountpoint", "path_from_mountpoint"],
+            "mountpoint": {
+              "type": "string",
+              "description": "Absolute path to mountpoint, must start and end with /, no ~ allowed."
+            },
+            "path_from_mountpoint": {
+              "type": "string",
+              "description": "Relative path of folder to back up to starting at specified mountpoint. Must end but not start with /"
+            }
           }
         }
       }
