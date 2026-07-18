@@ -1,5 +1,6 @@
 #!/bin/bash
 echo "Assuming python installed. Installing dependencies via pip "
+source ./.venv/bin/activate
 pip install -r ./requirements.txt
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

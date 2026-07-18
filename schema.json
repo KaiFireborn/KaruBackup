@@ -22,7 +22,7 @@
           "description": {
             "type": "string",
             "description": "Job's description, will be notified"
-          }
+          },
           "category": {
             "type": "string",
             "description": "The backup will be saved in remote_mountpoint/remote_path_from_mountpoint/category/job_name"
@@ -69,11 +69,12 @@
                   "custom",
                   "rsync_basic",
                   "rclone_basic",
-                  "restic_basic"
+                  "restic_basic",
+                  "encrypted"
                 ],
                 "description": "Choose `rclone_basic` if backing up to or from rclone remote; Choose `rsync_basic` (simple) or `restic_basic` (incremental) for backups on the same filesystem or to attached disks; Choose `restic_basic`."
               },
-              "additional": {
+              "main_command": {
                 "type": "string",
                 "description": "Custom command formatting template string."
               }
@@ -86,7 +87,19 @@
               }
             },
             "then": {
-              "required": ["additional"]
+              "required": ["main_command"]
+            }
+          },
+
+        "if": {
+              "properties": {
+                "mode": {
+                  "const": "encrypted"
+                }
+              }
+            },
+            "then": {
+              "required": ["passphrase"]
             }
           },
           "postcommand": {

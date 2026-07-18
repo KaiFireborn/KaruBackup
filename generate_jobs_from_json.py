@@ -196,7 +196,7 @@ date +%s > {generated_folder}{timemark_marker_filename}
         elif (
             style_data["mode"] == "custom"
         ):  # FIXME: this behavior not really needed anymore
-            custom_command = style_data["additional"].format(
+            custom_command = style_data["main_command"].format(
                 excluded_dirs_abs_path=excluded_dirs_abs_path,
                 source_dir=source_dir,
                 remote_dir=remote_dir,
