@@ -181,10 +181,10 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return """rsync -a --delete --info=progress2 "${EXCLUDE_ARGS_RSYNC[@]}" "$SOURCE_DIR" "$DEST_DIR"
+            return """rsync -a --delete --info=progress2 --exclude-from=$EXCLUDE_FILE "$SOURCE_DIR" "$DEST_DIR"
 """
         elif style_data["mode"] == "rclone_basic":
-            return """rclnone sync "$SOURCE_DIR", "$DEST_DIR" --links -P "${EXCLUDE_ARGS_RCLONE[@]}" --log-level INFO
+            return """rclnone sync "$SOURCE_DIR", "$DEST_DIR" --links --exclude-from $EXCLUDE_FILE --log-level INFO
 """
         elif style_data["mode"] == "restic_basic":
             raise NotImplementedError  # TODO
@@ -254,10 +254,10 @@ SOURCE_MOUNT={source_mountpoint}
 DEST_MOUNT={remote_mountpoint}
 SOURCE_DIR={source_dir}
 DEST_DIR={remote_dir}
-EXCLUDE_ARGS_RSYNC=( --exclude-from=<(cat "{excluded_dirs_abs_path}" "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null) )
-EXCLUDE_ARGS_RCLONE=( --exclude-from <(cat "{excluded_dirs_abs_path}" "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null) )
+EXCLUDE_FILE={excluded_dirs_abs_path}
 
 mkdir -p "$LOG_DIR"
+cat "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null > "$EXCLUDE_FILE"
 
 {generateMountpointChecks(check_source, check_remote)}
 
@@ -275,7 +275,6 @@ echo "${{YW}}-=- Maincommand ran.${{NC}}"
 
 {postcommand}
 {'printf "${{YW}}-=- Postcommand ran.${{NC}}"' if postcommand != "" else ""}
-
 # TODO: potential error check
 
 # calculate time elapsed
