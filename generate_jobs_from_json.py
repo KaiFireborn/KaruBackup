@@ -53,11 +53,15 @@ def getDirWeight(
     pass
 
 
+def fixPath(path):
+    return path.replace(" ", "\\ ")
+
+
 def processJob(title, job):
     def processSource(source_dict):
-        source_mountpoint = source_dict["mountpoint"]
+        source_mountpoint = fixPath(source_dict["mountpoint"])
         check_source = source_dict["check_if_mounted"]
-        source_dir = source_mountpoint + source_dict["path_from_mountpoint"]
+        source_dir = source_mountpoint + fixPath(source_dict["path_from_mountpoint"])
 
         if source_dir[-1] != "/":
             source_dir += "/"
@@ -79,11 +83,11 @@ def processJob(title, job):
         return source_dir, source_mountpoint, check_source, excluded_dirs_file_abs_path
 
     def processRemote(remote_dict, style, job_name, category):
-        remote_mountpoint = remote_dict["mountpoint"]
+        remote_mountpoint = fixPath(remote_dict["mountpoint"])
         check_remote = remote_dict["check_if_mounted"]
         remote_dir = (
             remote_mountpoint
-            + remote_dict["path_from_mountpoint"]
+            + fixPath(remote_dict["path_from_mountpoint"])
             + category
             + "/"
             + job_name
@@ -181,7 +185,7 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return """rsync -a --delete --info=progress2 --exclude-from=$EXCLUDE_FILE "$SOURCE_DIR" "$DEST_DIR"
+            return """rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE "$SOURCE_DIR" "$DEST_DIR"
 """
         elif style_data["mode"] == "rclone_basic":
             return """rclnone sync "$SOURCE_DIR", "$DEST_DIR" --links --exclude-from $EXCLUDE_FILE --log-level INFO
