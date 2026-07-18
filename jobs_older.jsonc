@@ -1,0 +1,71 @@
+{
+  "$schema": "./schema.json",
+  "jobs": {
+    // "BackupFilesFromDownloadsTest": {
+    //   "source": {
+    //     "root": "/home/kf/Downloads/KaruraTestSrc/",
+    //     "included_only": [],
+    //     "explicit_exclude": ["eduroam", "SN Backup"]
+    //   },
+    //   "precommand": "echo Starting",
+    //   "style": {
+    //     "mode": "custom",
+    //     "additional": "rsync -aHAX --inplace --numeric-ids --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
+    //   },
+    //   "postcommand": "echo Finishing",
+    //   "encrypted": "",
+    //   "trigger": {
+    //     "unit": "minute",
+    //     "every_n_units": 1
+    //   },
+    //   "remote": "/home/kf/Downloads/KaruraTestSrc/"
+    // },
+    "daitenshiHome": {
+      "source": {
+        "root": "/home/kf/",
+        "included_only": [],
+        "explicit_exclude": [
+          ".local/share/Steam/",
+          "mnt/",
+          ".cache/",
+          ".cargo/",
+          ".gradle/",
+          ".thunderbird/",
+          ".steam/"
+        ]
+      },
+      "precommand": "mountpoint -q ~/mnt/judgment || { echo 'Cloud not mounted! Exiting.'; exit 1; }",
+      "style": {
+        "mode": "custom",
+        "additional": "rsync -aHAXL --inplace --numeric-ids --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
+      },
+      "postcommand": "echo Finishing",
+      "encrypted": "",
+      "trigger": {
+        "unit": "day",
+        "every_n_units": -1
+      },
+      "remote": "/home/kf/mnt/judgment/Backups/from_daitenshi/"
+    },
+
+    "daitenshiTwin": {
+      "source": {
+        "root": "/twin/",
+        "included_only": [],
+        "explicit_exclude": []
+      },
+      "precommand": "mountpoint -q ~/mnt/judgment || { echo 'Cloud not mounted! Exiting.'; exit 1; }",
+      "encrypted": "",
+      "style": {
+        "mode": "custom",
+        "additional": "rsync -aHAXL --inplace --numeric-ids --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
+      },
+      "postcommand": "",
+      "trigger": {
+        "unit": "day",
+        "every_n_units": -1
+      },
+      "remote": "/home/kf/mnt/judgment/Backups/from_daitenshi/"
+    }
+  }
+}

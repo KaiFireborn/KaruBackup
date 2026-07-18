@@ -17,5 +17,6 @@ else
     exit 1
 fi
 
+mkdir generated
 echo "Initial setup done" > initial_setup_marker.kf
 

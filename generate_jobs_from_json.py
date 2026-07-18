@@ -56,6 +56,7 @@ def getDirWeight(
 def processJob(title, job):
     def processSource(source_dict):
         source_mountpoint = source_dict["mountpoint"]
+        check_source = source_dict["check_if_mounted"]
         source_dir = source_mountpoint + source_dict["path_from_mountpoint"]
 
         if source_dir[-1] != "/":
@@ -75,15 +76,23 @@ def processJob(title, job):
 
         if "~" in source_dir:
             warn("Don't use ~ instead of /home/username/ in jobs.jsonc!", abort=True)
-        return source_dir, source_mountpoint, excluded_dirs_file_abs_path
+        return source_dir, source_mountpoint, check_source, excluded_dirs_file_abs_path
 
-    def processRemote(remote_dict, style, job_name):
+    def processRemote(remote_dict, style, job_name, category):
         remote_mountpoint = remote_dict["mountpoint"]
-        remote_dir = remote_mountpoint + remote_dict["path_from_mountpoint"]
-        os.makedirs(remote_dir, exist_ok=True)
+        check_remote = remote_dict["check_if_mounted"]
+        remote_dir = (
+            remote_mountpoint
+            + remote_dict["path_from_mountpoint"]
+            + category
+            + "/"
+            + job_name
+            + "/"
+        )
+        # os.makedirs(remote_dir, exist_ok=True)
         if "~" in remote_dir:
             warn("Don't use ~ instead of /home/username/ in jobs.jsonc!", abort=True)
-        return remote_dir, remote_mountpoint
+        return remote_dir, remote_mountpoint, check_remote
 
     def processPrecommand(precommand):
         return precommand  # TODO: validate this somehow
@@ -129,15 +138,19 @@ def processJob(title, job):
     def processCategory(category):
         return category
 
-    def generateVerificationFiles(
-        source_dir, source_mountpoint, remote_dir, remote_mountpoint, job_name, category
-    ):
+    def processDescription(description, category):
+        return description + " " + category
+
+    def generateVerificationFiles(source_dir, remote_dir, job_name):
         generated_folder = f"./generated/{job_name}/"
         os.makedirs(generated_folder, exist_ok=True)
         exclude_file = generated_folder + "excluded_dirs.txt"
         with open("templates/verify.sh", "r") as infile:
             script = infile.read().format(
-                source_dir, remote_dir, job_name, exclude_file
+                source_dir=source_dir,
+                remote_dir=remote_dir,
+                job_name=job_name,
+                exclude_file=exclude_file,
             )
 
         writeTextToFile(generated_folder + "verify.sh", script)
@@ -168,12 +181,16 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return f"rsync -a --info=progress2 --exclude-from='{excluded_dirs_abs_path}' {source_dir} {remote_dir}"
+            return """rsync -a --delete --info=progress2 "${EXCLUDE_ARGS_RSYNC[@]}" "$SOURCE_DIR" "$DEST_DIR"
+"""
         elif style_data["mode"] == "rclone_basic":
-            return ""  # TODO
+            return """rclnone sync "$SOURCE_DIR", "$DEST_DIR" --links -P "${EXCLUDE_ARGS_RCLONE[@]}" --log-level INFO
+"""
         elif style_data["mode"] == "restic_basic":
-            raise NotImplementedError
-        elif style_data["mode"] == "custom":
+            raise NotImplementedError  # TODO
+        elif (
+            style_data["mode"] == "custom"
+        ):  # FIXME: this behavior not really needed anymore
             custom_command = style_data["additional"].format(
                 excluded_dirs_abs_path=excluded_dirs_abs_path,
                 source_dir=source_dir,
@@ -182,8 +199,7 @@ date +%s > {generated_folder}{timemark_marker_filename}
             return custom_command
 
     def generateNotificationCommand(kind, content):
-        return f"""notify-send -a "{APP_NAME}" -t 5100 "{APP_NAME} - {kind}" "{content}" 
-        """
+        return f"""notify-send -a "{APP_NAME}" -t 5100 "{APP_NAME} - {kind}" "{content}" """
 
     def getEnvVariablesForNotifs():
         return f"""# formatting
@@ -193,12 +209,28 @@ export DISPLAY=:0
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus
         """
 
+    def generateMountpointChecks(check_source, check_dest):
+        result = ""
+        template = """if ! mountpoint -q "${type_uc}_MOUNT"; then
+    echo "CRITICAL ERROR: {type_lc} '${type_uc}_MOUNT' is not mounted!"
+    echo "Aborting backup as not to flood the internal drive instead."
+    exit 1
+fi\n"""
+        if check_source:
+            result += template.format(type_lc="source", type_uc="SOURCE")
+        if check_dest:
+            result += template.format(type_lc="dest", type_uc="DEST")
+        return result
+
     def generateCopyJob(
         source_dir,
         source_mountpoint,
+        check_source,
         remote_dir,
         remote_mountpoint,
+        check_remote,
         job_name,
+        description,
         category,
         precommand,
         maincommand,
@@ -211,18 +243,40 @@ export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus
 
 {getEnvVariablesForNotifs()}
 
+echo "-=- {description}"
+
+#params
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+LOG_DIR="$SCRIPT_DIR/logs"
+LOG_FILE="$LOG_DIR/{job_name}.log"
+
+SOURCE_MOUNT={source_mountpoint}
+DEST_MOUNT={remote_mountpoint}
+SOURCE_DIR={source_dir}
+DEST_DIR={remote_dir}
+EXCLUDE_ARGS_RSYNC=( --exclude-from=<(cat "{excluded_dirs_abs_path}" "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null) )
+EXCLUDE_ARGS_RCLONE=( --exclude-from <(cat "{excluded_dirs_abs_path}" "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null) )
+
+mkdir -p "$LOG_DIR"
+
+{generateMountpointChecks(check_source, check_remote)}
+
 #job
 echo "${{YW}}-=- STARTING SYNC JOB -=-${{NC}}"
 START_TIME=$(date +%s)
 
-{generateNotificationCommand(style_data["mode"], f"{job_name} started. From {source_dir} to {remote_dir}")}
-
+{generateNotificationCommand(style_data["mode"], f"{job_name} started. From $SOURCE_DIR to $DEST_DIR")}
 {precommand}
-printf "${{YW}}-=- Precommand ran.${{NC}}"
+{'printf "${{YW}}-=- Precommand ran.${{NC}}"' if postcommand != "" else ""}
+
+mkdir -p "$DEST_DIR"
 {maincommand}
 echo "${{YW}}-=- Maincommand ran.${{NC}}"
+
 {postcommand}
-printf "${{YW}}-=- Postcommand ran.${{NC}}"
+{'printf "${{YW}}-=- Postcommand ran.${{NC}}"' if postcommand != "" else ""}
+
+# TODO: potential error check
 
 # calculate time elapsed
 END_TIME=$(date +%s)
@@ -240,9 +294,15 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         subprocess.run(["chmod", "+x", filename])
 
     category = processCategory(job["category"])
+    description = processDescription(job["description"], category)
     style_data = processStyle(job["style"])
-    source_dir, source_mountpoint, excluded_dirs_abs_path = processSource(job["source"])
-    remote_dir, remote_mountpoint = processRemote(job["remote"], style_data, title)
+
+    source_dir, source_mountpoint, check_source, excluded_dirs_abs_path = processSource(
+        job["source"]
+    )
+    remote_dir, remote_mountpoint, check_remote = processRemote(
+        job["remote"], style_data, title, category
+    )
     precommand = processPrecommand(job["precommand"])
     maincommand = generateMainCommand(
         style_data, excluded_dirs_abs_path, source_dir, remote_dir
@@ -252,9 +312,12 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
     generateCopyJob(
         source_dir,
         source_mountpoint,
+        check_source,
         remote_dir,
         remote_mountpoint,
+        check_remote,
         title,
+        description,
         category,
         precommand,
         maincommand,
@@ -263,9 +326,7 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         excluded_dirs_abs_path,
     )
     generateTimerHelperFiles(title, manual_only, on_update, interval)
-    generateVerificationFiles(
-        source_dir, source_mountpoint, remote_dir, remote_mountpoint, title, category
-    )
+    generateVerificationFiles(source_dir, remote_dir, title)
 
 
 def clearGeneratedFolder():

@@ -11,6 +11,7 @@
         "required": [
           "source",
           "precommand",
+          "description",
           "style",
           "postcommand",
           "trigger",
@@ -18,6 +19,10 @@
           "category"
         ],
         "properties": {
+          "description": {
+            "type": "string",
+            "description": "Job's description, will be notified"
+          }
           "category": {
             "type": "string",
             "description": "The backup will be saved in remote_mountpoint/remote_path_from_mountpoint/category/job_name"
@@ -27,7 +32,8 @@
             "required": [
               "mountpoint",
               "path_from_mountpoint",
-              "explicit_exclude"
+              "explicit_exclude",
+              "check_if_mounted"
             ],
             "properties": {
               "mountpoint": {
@@ -37,6 +43,10 @@
               "path_from_mountpoint": {
                 "type": "string",
                 "description": "Path to the folder the contents of which are supposed to be backed up starting from the mountpoint specified separately. Must end but not start with `/`"
+              },
+              "check_if_mounted": {
+                "type": "boolean",
+                "description": "if true and the mount dir isn't a mountpoint, aborts job. Set to false if the path is on the / drive or an RSYNC remote!"
               },
               "explicit_exclude": {
                 "type": "array",
@@ -99,10 +109,18 @@
             }
           },
           "remote": {
-            "required": ["mountpoint", "path_from_mountpoint"],
+            "required": [
+              "mountpoint",
+              "path_from_mountpoint",
+              "check_if_mounted"
+            ],
             "mountpoint": {
               "type": "string",
               "description": "Absolute path to mountpoint, must start and end with /, no ~ allowed."
+            },
+            "check_if_mounted": {
+              "type": "boolean",
+              "description": "if true and the mount dir isn't a mountpoint, aborts job. Set to false if the path is on the / drive or an RSYNC remote!"
             },
             "path_from_mountpoint": {
               "type": "string",
