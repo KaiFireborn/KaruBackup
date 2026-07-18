@@ -161,11 +161,24 @@ def processJob(title, job):
         writeTextToFile(generated_folder + verification_script_name, script)
         subprocess.run(["chmod", "+x", generated_folder + verification_script_name])
 
+    def generateManualTriggers(job_name, script_path, on_manual):
+        if not on_manual:
+            return
+        else:
+            script = f"""#/bin/bash
+.{script_path}
+            """
+            manual_trigger_folder = "./manual_scripts/"
+            os.makedirs(manual_trigger_folder, exist_ok=True)
+            filepath = manual_trigger_folder + job_name + ".sh"
+            writeTextToFile(filepath, script)
+            subprocess.run(["chmod", "+x", filepath])
+
     def generateTimerHelperFiles(job_name, manual_only, on_update, interval_minutes):
         generated_folder = f"./generated/{job_name}/"
         os.makedirs(generated_folder, exist_ok=True)
 
-        if manual_only:
+        if manual_only:  # TODO: maybe consolidate this with generateManualTriggers
             writeTextToFile(generated_folder + "MANUAL_ONLY.kf", "")
 
         timemark_marker_filename = "last_executed_on.kf"
@@ -187,7 +200,8 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return """rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
+            return """mkdir -p "$DEST_DIR"
+rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
 """
         elif style_data["mode"] == "rclone_basic":
             return """rclone sync "$SOURCE_DIR" "$DEST_DIR" --links -P --exclude-from $EXCLUDE_FILE --exclude-from $EXCLUDE_FILE_INFERRED --log-level WARNING"""
@@ -275,7 +289,6 @@ START_TIME=$(date +%s)
 {precommand}
 {'printf "${{YW}}-=- Precommand ran.${{NC}}"' if postcommand != "" else ""}
 
-mkdir -p "$DEST_DIR"
 {maincommand}
 echo "${{YW}}-=- Maincommand ran.${{NC}}"
 
@@ -297,6 +310,7 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         filename = f"./generated/{job_name}/copy.sh"
         writeTextToFile(filename, script)
         subprocess.run(["chmod", "+x", filename])
+        return filename
 
     category = processCategory(job["category"])
     description = processDescription(job["description"], category)
@@ -314,7 +328,7 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
     )
     postcommand = processPostcommand(job["postcommand"])
     manual_only, on_update, interval = processTrigger(job["trigger"])
-    generateCopyJob(
+    copy_script_path = generateCopyJob(
         source_dir,
         source_mountpoint,
         check_source,
@@ -330,6 +344,7 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
         style_data,
         excluded_dirs_abs_path,
     )
+    generateManualTriggers(title, copy_script_path, manual_only)
     generateTimerHelperFiles(title, manual_only, on_update, interval)
     generateVerificationFiles(source_dir, remote_dir, title)
 
