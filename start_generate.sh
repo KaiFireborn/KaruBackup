@@ -1,3 +1,7 @@
+#!/bin/bash
+# TODO: potentially create with venv
+source ./.venv/bin/activate
+
 if [ ! -s ./initial_setup_marker.kf ]; then
   echo "Not skipping initial setup..."
   ./initial_setup.sh

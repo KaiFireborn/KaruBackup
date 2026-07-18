@@ -157,7 +157,9 @@ def processJob(title, job):
                 exclude_file=exclude_file,
             )
 
-        writeTextToFile(generated_folder + "verify.sh", script)
+        verification_script_name = "verify.sh"
+        writeTextToFile(generated_folder + verification_script_name, script)
+        subprocess.run(["chmod", "+x", generated_folder + verification_script_name])
 
     def generateTimerHelperFiles(job_name, manual_only, on_update, interval_minutes):
         generated_folder = f"./generated/{job_name}/"
@@ -185,11 +187,10 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return """rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE "$SOURCE_DIR" "$DEST_DIR"
+            return """rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
 """
         elif style_data["mode"] == "rclone_basic":
-            return """rclnone sync "$SOURCE_DIR", "$DEST_DIR" --links --exclude-from $EXCLUDE_FILE --log-level INFO
-"""
+            return """rclone sync "$SOURCE_DIR" "$DEST_DIR" --links -P --exclude-from $EXCLUDE_FILE --exclude-from $EXCLUDE_FILE_INFERRED --log-level WARNING"""
         elif style_data["mode"] == "restic_basic":
             raise NotImplementedError  # TODO
         elif (
@@ -258,10 +259,11 @@ SOURCE_MOUNT={source_mountpoint}
 DEST_MOUNT={remote_mountpoint}
 SOURCE_DIR={source_dir}
 DEST_DIR={remote_dir}
-EXCLUDE_FILE={excluded_dirs_abs_path}
+EXCLUDE_FILE={excluded_dirs_abs_path} # by job
+EXCLUDE_FILE_INFERRED="$SCRIPT_DIR/excluded_dirs_inferred.txt"
 
 mkdir -p "$LOG_DIR"
-cat "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null > "$EXCLUDE_FILE"
+cat "${{SOURCE_DIR}}.karubackup_ignore.txt" 2>/dev/null > "$EXCLUDE_FILE_INFERRED"
 
 {generateMountpointChecks(check_source, check_remote)}
 
