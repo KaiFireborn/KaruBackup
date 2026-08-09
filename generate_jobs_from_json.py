@@ -74,8 +74,10 @@ def processJob(title, job):
             excluded  # + (all_dirs in root - included) # TODO: handle this
         )
         os.makedirs(f"./generated/{title}", exist_ok=True)
-        excluded_dirs_file_abs_path = writeTextToFile(
-            f"./generated/{title}/excluded_dirs.txt", "\n".join(excluded_dirs_total)
+        excluded_dirs_file_abs_path = (
+            writeTextToFile(  # FIXME: this returns some wrong path?
+                f"./generated/{title}/excluded_dirs.txt", "\n".join(excluded_dirs_total)
+            )
         )
 
         if "~" in source_dir:
@@ -273,7 +275,7 @@ SOURCE_MOUNT={source_mountpoint}
 DEST_MOUNT={remote_mountpoint}
 SOURCE_DIR={source_dir}
 DEST_DIR={remote_dir}
-EXCLUDE_FILE={excluded_dirs_abs_path} # by job
+EXCLUDE_FILE="$SCRIPT_DIR/excluded_dirs.txt" # by job
 EXCLUDE_FILE_INFERRED="$SCRIPT_DIR/excluded_dirs_inferred.txt"
 
 mkdir -p "$LOG_DIR"

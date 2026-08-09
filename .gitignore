@@ -5,6 +5,5 @@ initial_setup_marker.kf
 jobs.jsonc
 cron_output.log
 manual_scripts/*
-manual_scripts
 old/*
 old
