@@ -187,8 +187,10 @@ date +%s > {generated_folder}{timemark_marker_filename}
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
         if style_data["mode"] == "rsync_basic":
-            return """rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
-"""
+            return """
+mkdir -p "$DEST_DIR
+rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
+"""  # TODO: add that mkdir to other modes as well
         elif style_data["mode"] == "rclone_basic":
             return """rclone sync "$SOURCE_DIR" "$DEST_DIR" --links -P --exclude-from $EXCLUDE_FILE --exclude-from $EXCLUDE_FILE_INFERRED --log-level WARNING"""
         elif style_data["mode"] == "restic_basic":
@@ -275,7 +277,6 @@ START_TIME=$(date +%s)
 {precommand}
 {'printf "${{YW}}-=- Precommand ran.${{NC}}"' if postcommand != "" else ""}
 
-mkdir -p "$DEST_DIR"
 {maincommand}
 echo "${{YW}}-=- Maincommand ran.${{NC}}"
 
