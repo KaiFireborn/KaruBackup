@@ -5,7 +5,14 @@ import shutil
 import traceback
 
 APP_NAME = "KaruBackup"
-ACCEPTED_STYLE_MODES = ["custom", "rsync_basic", "rclone_basic", "restic_basic"]
+ACCEPTED_STYLE_MODES = [
+    "custom",
+    "rsync_basic",
+    "rsync_remote",
+    "rclone_basic",
+    "rclone_remote",
+    "restic_basic",
+]
 INITIALLY_OVERDUE = True
 
 
@@ -201,12 +208,19 @@ date +%s > {generated_folder}{timemark_marker_filename}
         writeTextToFile(generated_folder + interval_filename, interval_content)
 
     def generateMainCommand(style_data, excluded_dirs_abs_path, source_dir, remote_dir):
+        # TODO: potentially consolidate these
         if style_data["mode"] == "rsync_basic":
             return """mkdir -p "$DEST_DIR"
 rsync -a --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED "$SOURCE_DIR" "$DEST_DIR"
 """
+        elif style_data["mode"] == "rsync_remote":
+            return """mkdir -p "$DEST_DIR"
+rsync -avz --delete --info=progress2 --stats --exclude-from=$EXCLUDE_FILE --exclude-from=$EXCLUDE_FILE_INFERRED $SOURCE_DIR "$DEST_DIR"
+"""
         elif style_data["mode"] == "rclone_basic":
             return """rclone sync "$SOURCE_DIR" "$DEST_DIR" --links -P --exclude-from $EXCLUDE_FILE --exclude-from $EXCLUDE_FILE_INFERRED --log-level WARNING"""
+        elif style_data["mode"] == "rclone_remote":
+            return """rclone sync $SOURCE_DIR "$DEST_DIR" --links -P --exclude-from $EXCLUDE_FILE --exclude-from $EXCLUDE_FILE_INFERRED --log-level WARNING"""
         elif style_data["mode"] == "restic_basic":
             raise NotImplementedError  # TODO
         elif (
@@ -328,6 +342,7 @@ echo "${{YW}}-=- SYNC JOB FINISHED IN ${{MIN}}min ${{SEC}}sec -=-${{NC}}"
     maincommand = generateMainCommand(
         style_data, excluded_dirs_abs_path, source_dir, remote_dir
     )
+
     postcommand = processPostcommand(job["postcommand"])
     manual_only, on_update, interval = processTrigger(job["trigger"])
     copy_script_path = generateCopyJob(
